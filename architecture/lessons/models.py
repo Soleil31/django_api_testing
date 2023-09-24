@@ -1,12 +1,17 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
 
 
 class Product(models.Model):
     name = models.CharField(max_length=100)
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
-    access_id = models.IntegerField(max_length=100) #for users to access product
 
+class Access(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
 
 class Lesson(models.Model):
     title = models.CharField(max_length=100)
@@ -33,14 +38,16 @@ class LessonStatus(models.Model):
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE)
-    watched_time = models.IntegerField()
+    watched_time = models.IntegerField(default=0)
     status = models.CharField(
         max_length=2,
         choices=Status.choices,
         default=Status.NOTWATCHED
     )
 
-    def save(self, *args, **kwargs):
-        if self.watched_time >= 0.8 * self.lesson.duration:
-            self.status = self.Status.WATCHED
-        super().save(*args, **kwargs)
+
+@receiver(post_save, sender=LessonStatus)
+def update_lesson_status(sender, instance, **kwargs):
+    if instance.watched_time >= 0.8 * instance.lesson.duration:
+        instance.status = LessonStatus.Status.WATCHED
+        instance.save()
