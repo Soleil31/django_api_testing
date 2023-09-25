@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Lesson, LessonStatus
+from .models import Lesson, LessonStatus, Access, Product
 
 #first api
 class LessonStatusSerializer(serializers.ModelSerializer):
@@ -21,3 +21,9 @@ class LessonDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson
         fields = ['id', 'title', 'video_link', 'duration', 'status']
+
+#third api
+class ProductStatsSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    stats = serializers.DictField()

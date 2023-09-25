@@ -3,11 +3,34 @@ from django.contrib.auth.models import User
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.utils import timezone
+from django.db.models import Sum
 
 
 class Product(models.Model):
     name = models.CharField(max_length=100)
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    def get_product_stats(self):
+        total_lessons_watched = LessonStatus.objects.filter(
+            lesson__products=self,
+            status=LessonStatus.Status.WATCHED
+        ).count()
+
+        total_time_watched = LessonStatus.objects.filter(
+            lesson__products=self,
+            status=LessonStatus.Status.WATCHED
+        ).aggregate(Sum('watched_time'))['watched_time__sum']
+
+        total_students = Access.objects.filter(product=self).count()
+
+        purchase_percentage = (Access.objects.filter(product=self).count() * 100) / User.objects.count()
+
+        return {
+            'total_lessons_watched': total_lessons_watched,
+            'total_time_watched': total_time_watched,
+            'total_students': total_students,
+            'purchase_percentage': purchase_percentage,
+        }
 
 class Access(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
