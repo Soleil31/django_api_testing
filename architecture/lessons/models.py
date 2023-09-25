@@ -1,8 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import User
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
-
+from django.utils import timezone
 
 
 class Product(models.Model):
@@ -27,6 +27,15 @@ class Lesson(models.Model):
 
     def __str__(self) -> str:
         return self.title or 'Название отсутствует'
+    
+    def get_lesson_status(self):
+        try:
+            product = self.products.first()  # Получаем первый связанный продукт
+            access = Access.objects.get(user=product.owner, product=product)
+            return LessonStatus.objects.filter(user=access.user, lesson=self).latest('id')
+        except (Access.DoesNotExist, LessonStatus.DoesNotExist):
+            return None
+
 
 
 class LessonStatus(models.Model):
@@ -44,10 +53,14 @@ class LessonStatus(models.Model):
         choices=Status.choices,
         default=Status.NOTWATCHED
     )
+    watched_at = models.DateTimeField(default=None, null=True, blank=True)
 
 
 @receiver(post_save, sender=LessonStatus)
 def update_lesson_status(sender, instance, **kwargs):
     if instance.watched_time >= 0.8 * instance.lesson.duration:
         instance.status = LessonStatus.Status.WATCHED
+        instance.save()
+    if instance.status == LessonStatus.Status.WATCHED:
+        instance.watched_at = timezone.now()
         instance.save()
